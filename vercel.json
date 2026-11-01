@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/.netlify/functions/vote", "destination": "/api/vote" },
+    { "source": "/.netlify/functions/results", "destination": "/api/results" }
+  ]
+}
