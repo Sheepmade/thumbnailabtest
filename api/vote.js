@@ -19,6 +19,15 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ ok: true });
   } catch (err) {
     console.error("vote error:", err && err.message);
-    res.status(500).json({ error: "storage failed", detail: String(err && err.message || err) });
+    res.status(500).json({
+      error: "storage failed",
+      detail: String(err && err.message || err),
+      env: {
+        BLOB_STORE_ID: !!process.env.BLOB_STORE_ID,
+        BLOB_READ_WRITE_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
+        VERCEL_OIDC_TOKEN: !!process.env.VERCEL_OIDC_TOKEN,
+        oidcHeaderPresent: !!(req.headers && req.headers["x-vercel-oidc-token"])
+      }
+    });
   }
 };

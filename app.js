@@ -135,7 +135,7 @@
     sendVote(payload)
       .catch((err) => {
         try { localStorage.setItem("pending_" + payload.sessionId + "_" + payload.pairId, JSON.stringify(payload)); } catch (e) {}
-        $("vote-status").textContent = "Vote not saved (" + err.message + ") — moving on.";
+        $("vote-status").textContent = "Vote not saved (" + err.message + ")";
         console.warn(err);
       })
       .finally(() => {
