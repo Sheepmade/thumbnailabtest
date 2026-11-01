@@ -91,17 +91,17 @@ async function getStore(req) {
   }
   if (process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
-    const blobs = getStore(STORE);
+    const blobs = getStore(STORE, { consistency: "strong" });
     return {
       kind: "netlify-blobs",
       async append(record) {
         const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-");
-        await blobs.setJSON(key, record);
+        await blobs.setJSON(key, record, { consistency: "strong" });
       },
       async all() {
         const out = [];
-        for await (const { key } of blobs.list({ prefix: "votes/" })) {
-          const v = await blobs.getJSON(key);
+        for await (const { key } of blobs.list({ prefix: "votes/", paginate: true })) {
+          const v = await blobs.getJSON(key, { consistency: "strong" });
           if (v) out.push(v);
         }
         return out;
