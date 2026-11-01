@@ -15,5 +15,10 @@ create index if not exists votes_pair_idx on votes ("pairId");
 create index if not exists votes_session_idx on votes ("sessionId");
 
 alter table votes enable row level security;
--- No public policies: the service role key (server-side only, set as a Vercel env var)
--- bypasses RLS. The anon key is never shipped to the client, so /api/* are the only writers.
+
+-- New Supabase keys: the "service_role" JWT authenticates as role `service_role`,
+-- which does NOT automatically bypass RLS (that was the legacy behavior). Grant it
+-- explicitly; no public policies are created, so the anon key still cannot read/write.
+grant usage on schema public to service_role;
+grant select, insert on public.votes to service_role;
+revoke all on public.votes from anon, authenticated;
