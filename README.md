@@ -48,13 +48,14 @@ Set `backend` in `config.js`: `"sheets"`, `"netlify"` (default endpoints), or `"
 3. `backend` defaults to `"netlify"`; endpoints `/.netlify/functions/vote` and `/.netlify/functions/results` work out of the box.
 4. Results: `https://<your-site>/.netlify/functions/results` → `node analysis/analyze.js --url <that URL>`.
 
-### Option C — Vercel
+### Option C — Vercel (current default in `config.js`)
 
-1. Import the repo on Vercel. `api/vote.js` and `api/results.js` are auto-detected as
+1. In the Vercel project dashboard: **Storage → Create Database → Blob** (creates `BLOB_READ_WRITE_TOKEN` automatically for the project's functions).
+2. Import the repo on Vercel. `api/vote.js` and `api/results.js` are auto-detected as
    serverless functions; `vercel.json` rewrites the `/.netlify/functions/*` paths to them.
-2. Set `backend: "netlify"` in `config.js` and the existing endpoints will hit the rewritten API routes — no config change needed at all. Or set `backend: "vercel"` to use `/api/*` directly.
-3. Storage uses `@netlify/blobs` only on Netlify; on Vercel add Vercel Blob
-   (`BLOB_READ_WRITE_TOKEN`) and extend `backends/lib/store.js`, or use Option A/B for storage.
+3. `config.js` ships with `backend: "vercel"`, so votes POST to `/api/vote` and are stored
+   in Vercel Blob by `backends/lib/store.js`. Results: `https://<site>/api/results`.
+4. Keep the production branch pointed at `main`.
 
 ## Analysis
 
