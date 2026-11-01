@@ -29,9 +29,20 @@ Then replace the 20 files in `thumbnails/` with your real images, keeping the na
 `p01_ai.jpg`, `p01_human.jpg`, … `p10_human.jpg` (or edit `data/pairs.js` to point at
 your filenames). Thumbnails should be 16:9 (e.g. 1280×720).
 
-## Pick a backend (one of three)
+## Pick a backend (one of four)
 
-Set `backend` in `config.js`: `"sheets"`, `"netlify"` (default endpoints), or `"vercel"`.
+Set `backend` in `config.js`: `"sheets"`, `"netlify"`, or `"vercel"` (currently `"vercel"`).
+Storage is chosen automatically in `backends/lib/store.js` by which env vars exist:
+`SUPABASE_URL`+`SUPABASE_SERVICE_ROLE_KEY` (Supabase, recommended), else Vercel Blob, else Netlify Blobs.
+
+### Option 0 — Supabase (recommended; works on Vercel or Netlify)
+
+1. [supabase.com](https://supabase.com) → New project → wait for it to provision.
+2. **SQL Editor** → run `backends/supabase/schema.sql` (creates the `votes` table, RLS on, no public policies — only the service key can write).
+3. **Project Settings → API** → copy **Project URL** and the **service_role** key (secret).
+4. On Vercel: project → **Settings → Environment Variables** → add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Production) → redeploy `main`.
+5. Votes POST to `/api/vote` (Vercel) and land in the `votes` table. Browse in Supabase → **Table Editor**.
+6. Results: `/api/results`, or query the table directly in Supabase.
 
 ### Option A — Google Sheets (easiest, no deploy of functions)
 
