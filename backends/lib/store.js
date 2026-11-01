@@ -90,19 +90,26 @@ async function getStore(req) {
     throw new Error("Vercel Blob store unavailable: " + (store && store.error ? store.error : "unknown") + ". Diagnostics: " + envDiag() + " oidcHeader=" + !!getOidcToken(req));
   }
   if (process.env.NETLIFY) {
-    const { getStore } = require("@netlify/blobs");
-    const blobs = getStore(STORE, { consistency: "strong" });
+    const { getStore, connectLambda } = require("@netlify/blobs");
+    // Lambda-style handlers receive Blobs credentials on the event, not the environment
+    if (req && req.blobs) connectLambda(req);
+    const blobs = getStore(STORE);
     return {
       kind: "netlify-blobs",
       async append(record) {
         const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-");
-        await blobs.setJSON(key, record, { consistency: "strong" });
+        await blobs.setJSON(key, record);
       },
       async all() {
+        const keys = [];
+        for await (const page of blobs.list({ prefix: "votes/", paginate: true })) {
+          for (const b of page.blobs) keys.push(b.key);
+        }
+        // fetch in parallel batches; one-by-one reads get slow once there are hundreds of votes
         const out = [];
-        for await (const { key } of blobs.list({ prefix: "votes/", paginate: true })) {
-          const v = await blobs.getJSON(key, { consistency: "strong" });
-          if (v) out.push(v);
+        for (let i = 0; i < keys.length; i += 50) {
+          const batch = await Promise.all(keys.slice(i, i + 50).map((k) => blobs.get(k, { type: "json" })));
+          for (const v of batch) if (v) out.push(v);
         }
         return out;
       }

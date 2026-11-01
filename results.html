@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thumbnail Study — Results</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="results.css">
+</head>
+<body class="dash-body">
+<main id="dash">
+  <header class="dash-header">
+    <div>
+      <h1 id="dash-title">Results</h1>
+      <p class="muted" id="dash-updated">Loading votes…</p>
+    </div>
+    <div class="dash-actions">
+      <label class="muted"><input type="checkbox" id="auto-refresh" checked> Auto-refresh</label>
+      <button class="btn btn-small" id="refresh-btn" type="button">Refresh</button>
+      <button class="btn btn-small btn-ghost" id="csv-btn" type="button" disabled>Download CSV</button>
+    </div>
+  </header>
+
+  <p id="dash-error" class="dash-error hidden" role="alert"></p>
+
+  <section class="tiles" aria-label="Summary">
+    <div class="tile"><div class="tile-label">Votes</div><div class="tile-value" id="t-votes">–</div></div>
+    <div class="tile"><div class="tile-label">Participants</div><div class="tile-value" id="t-sessions">–</div></div>
+    <div class="tile"><div class="tile-label">Finished all rounds</div><div class="tile-value" id="t-complete">–</div></div>
+    <div class="tile"><div class="tile-label">Avg. choices per person</div><div class="tile-value" id="t-avg">–</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Overall: which kind gets picked?</h2>
+    <div class="split" id="overall-split" aria-hidden="true">
+      <div class="split-ai" id="overall-ai"></div>
+      <div class="split-human" id="overall-human"></div>
+    </div>
+    <div class="split-legend">
+      <span><i class="sw sw-ai"></i>AI <strong id="overall-ai-label">–</strong></span>
+      <span><i class="sw sw-human"></i>Hand-photoshopped <strong id="overall-human-label">–</strong></span>
+    </div>
+    <p class="muted" id="overall-stat"></p>
+  </section>
+
+  <section class="card">
+    <h2>Per pair</h2>
+    <p class="muted">Share of people who picked each version, for every pair of thumbnails.</p>
+    <div id="pairs" class="pairs"></div>
+  </section>
+
+  <div class="two-col">
+    <section class="card">
+      <h2>Position check</h2>
+      <p class="muted">Left/right placement is randomized, so this should be close to 50/50.</p>
+      <div class="split split-neutral" aria-hidden="true">
+        <div class="split-left" id="side-left"></div>
+        <div class="split-right" id="side-right"></div>
+      </div>
+      <div class="split-legend">
+        <span>Left <strong id="side-left-label">–</strong></span>
+        <span>Right <strong id="side-right-label">–</strong></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Participants by AI picks</h2>
+      <p class="muted">How many of their choices each finished participant gave to the AI thumbnail.</p>
+      <div id="dist" class="dist"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Latest choices</h2>
+    <div class="table-wrap">
+      <table class="votes">
+        <thead><tr><th>Time</th><th>Participant</th><th>Pair</th><th>Round</th><th>Picked</th><th>Side</th></tr></thead>
+        <tbody id="recent"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="data/pairs.js"></script>
+<script src="results.js"></script>
+</body>
+</html>
