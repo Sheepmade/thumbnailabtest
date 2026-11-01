@@ -13,6 +13,7 @@ module.exports = async function handler(req, res) {
       env: {
         VERCEL: !!process.env.VERCEL,
         BLOB_READ_WRITE_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
+        BLOB_STORE_ID: !!process.env.BLOB_STORE_ID,
         NETLIFY: !!process.env.NETLIFY,
         NETLIFY_BLOBS_TOKEN: !!process.env.NETLIFY_BLOBS_TOKEN
       }

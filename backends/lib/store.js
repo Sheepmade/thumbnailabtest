@@ -1,11 +1,22 @@
-// Storage for vote records. Three environments:
+// Storage for vote records. Environments:
+//  - Vercel: Vercel Blob REST API. Vercel injects BLOB_READ_WRITE_TOKEN (the
+//    read/write token, format vercel_blob_rw_<STOREID>_...) when a Blob store is
+//    connected to the project. If only BLOB_STORE_ID is present we cannot call the
+//    REST API directly, so we fail loudly instead.
 //  - Netlify: Netlify Blobs (store "votes"), configured automatically
-//  - Vercel: Vercel Blob via @vercel/blob (BLOB_READ_WRITE_TOKEN is set
-//    automatically when you add a Blob store in the Vercel dashboard)
 //  - Local dev: in-memory array
 
 const STORE = "votes";
+const BLOB_API = "https://blob.vercel-storage.com";
 let memory = [];
+
+function envDiag() {
+  return "VERCEL=" + !!process.env.VERCEL +
+    " BLOB_READ_WRITE_TOKEN=" + !!process.env.BLOB_READ_WRITE_TOKEN +
+    " BLOB_STORE_ID=" + !!process.env.BLOB_STORE_ID +
+    " NETLIFY=" + !!process.env.NETLIFY +
+    " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN;
+}
 
 function memoryStore() {
   return {
@@ -15,29 +26,42 @@ function memoryStore() {
   };
 }
 
+function vercelBlobStore(token) {
+  const auth = "Bearer " + token;
+  return {
+    kind: "vercel-blob",
+    async append(record) {
+      const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-") + ".json";
+      const res = await fetch(BLOB_API + "/" + encodeURIComponent(key) + "?addRandomSuffix=false", {
+        method: "PUT",
+        headers: { authorization: auth, "content-type": "application/json", "x-content-type": "application/json", "access": "public" },
+        body: JSON.stringify(record)
+      });
+      if (!res.ok) throw new Error("blob put failed: " + res.status + " " + (await res.text()).slice(0, 200));
+    },
+    async all() {
+      const out = [];
+      let cursor;
+      do {
+        const q = new URLSearchParams({ prefix: "votes/", limit: "1000" });
+        if (cursor) q.set("cursor", cursor);
+        const res = await fetch(BLOB_API + "/?" + q.toString(), { headers: { authorization: auth } });
+        if (!res.ok) throw new Error("blob list failed: " + res.status + " " + (await res.text()).slice(0, 200));
+        const page = await res.json();
+        for (const item of page.blobs || []) {
+          const r = await fetch(item.url);
+          if (r.ok) out.push(await r.json());
+        }
+        cursor = page.hasMore ? page.cursor : undefined;
+      } while (cursor);
+      return out;
+    }
+  };
+}
+
 async function getStore() {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const { put, list } = require("@vercel/blob");
-    return {
-      kind: "vercel-blob",
-      async append(record) {
-        const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-") + ".json";
-        await put(key, JSON.stringify(record), { access: "public", contentType: "application/json", addRandomSuffix: false });
-      },
-      async all() {
-        const out = [];
-        let cursor = undefined;
-        do {
-          const page = await list({ prefix: "votes/", cursor, limit: 1000 });
-          for (const item of page.blobs) {
-            const res = await fetch(item.url);
-            if (res.ok) out.push(await res.json());
-          }
-          cursor = page.hasMore ? page.cursor : undefined;
-        } while (cursor);
-        return out;
-      }
-    };
+    return vercelBlobStore(process.env.BLOB_READ_WRITE_TOKEN);
   }
   if (process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
@@ -60,12 +84,9 @@ async function getStore() {
   }
   if (process.env.VERCEL || process.env.NETLIFY) {
     throw new Error(
-      "No persistent store configured. On Vercel: connect a Blob store to THIS project " +
-      "(Storage tab -> Connect -> select the store for this project) so BLOB_READ_WRITE_TOKEN " +
-      "is set, then redeploy. Detail: VERCEL=" + !!process.env.VERCEL +
-      " NETLIFY=" + !!process.env.NETLIFY +
-      " BLOB_READ_WRITE_TOKEN=" + !!process.env.BLOB_READ_WRITE_TOKEN +
-      " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN
+      "No usable store credentials. On Vercel, connecting a Blob store to the project must inject " +
+      "BLOB_READ_WRITE_TOKEN into functions (Storage tab -> Connect the store to THIS project, then REDEPLOY). " +
+      "Diagnostics: " + envDiag()
     );
   }
   return memoryStore();
