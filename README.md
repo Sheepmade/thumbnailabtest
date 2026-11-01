@@ -57,6 +57,14 @@ Set `backend` in `config.js`: `"sheets"`, `"netlify"` (default endpoints), or `"
    in Vercel Blob by `backends/lib/store.js`. Results: `https://<site>/api/results`.
 4. Keep the production branch pointed at `main`.
 
+## Live results dashboard
+
+Open `https://<your-site>/results` to watch votes come in: total votes and participants,
+AI vs. hand-photoshopped pick rates with a significance check, a per-pair breakdown next to
+the actual thumbnails, the left/right position check, how many AI picks each finished
+participant made, and the latest 25 choices. It refreshes every 15 seconds and has a
+**Download CSV** button. New votes can take up to a minute to appear.
+
 ## Analysis
 
 ```bash
@@ -93,6 +101,7 @@ per-pair breakdown, and a two-proportion z-test.
 
 ```
 index.html, styles.css, app.js   frontend (app.js also exports pure logic for tests)
+results.html/.css/.js            live results dashboard (/results)
 config.js                        backend choice + endpoints + study text
 data/pairs.js                    the 10 pairs (edit filenames here)
 thumbnails/                      20 images (1280x720 placeholders until you swap in real ones)
