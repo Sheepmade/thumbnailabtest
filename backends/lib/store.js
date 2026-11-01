@@ -1,8 +1,6 @@
 // Storage for vote records. Environments:
-//  - Vercel: Vercel Blob REST API. Vercel injects BLOB_READ_WRITE_TOKEN (the
-//    read/write token, format vercel_blob_rw_<STOREID>_...) when a Blob store is
-//    connected to the project. If only BLOB_STORE_ID is present we cannot call the
-//    REST API directly, so we fail loudly instead.
+//  - Supabase (default): PostgREST table `votes` via SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+//  - Vercel: Vercel Blob REST API (OIDC header or BLOB_READ_WRITE_TOKEN)
 //  - Netlify: Netlify Blobs (store "votes"), configured automatically
 //  - Local dev: in-memory array
 
@@ -17,7 +15,9 @@ function envDiag() {
     " VERCEL_OIDC_TOKEN=" + !!process.env.VERCEL_OIDC_TOKEN +
     " VERCEL_PROJECT_ID=" + !!process.env.VERCEL_PROJECT_ID +
     " NETLIFY=" + !!process.env.NETLIFY +
-    " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN;
+    " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN +
+    " SUPABASE_URL=" + !!process.env.SUPABASE_URL +
+    " SUPABASE_SERVICE_ROLE_KEY=" + !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
 function memoryStore() {
@@ -83,7 +83,44 @@ function vercelBlobStore(req) {
   };
 }
 
+function supabaseStore() {
+  const base = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !key) return { error: "missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" };
+  const headers = {
+    apikey: key,
+    authorization: "Bearer " + key,
+    "content-type": "application/json",
+    prefer: "return=representation"
+  };
+  return {
+    kind: "supabase",
+    async append(record) {
+      const res = await fetch(base + "/rest/v1/votes", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(record)
+      });
+      if (!res.ok && res.status !== 201) {
+        throw new Error("supabase insert failed: " + res.status + " " + (await res.text()).slice(0, 300));
+      }
+    },
+    async all() {
+      const res = await fetch(base + "/rest/v1/votes?select=*&order=ts.asc", {
+        headers: { ...headers, prefer: "" }
+      });
+      if (!res.ok) throw new Error("supabase select failed: " + res.status + " " + (await res.text()).slice(0, 300));
+      return res.json();
+    }
+  };
+}
+
 async function getStore(req) {
+  if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const s = supabaseStore();
+    if (s.append) return s;
+    throw new Error("Supabase store unavailable: " + s.error + ". Diagnostics: " + envDiag());
+  }
   if (process.env.BLOB_READ_WRITE_TOKEN || (process.env.BLOB_STORE_ID && process.env.VERCEL)) {
     const store = vercelBlobStore(req);
     if (store && store.append) return store;
