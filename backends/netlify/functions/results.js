@@ -1,8 +1,8 @@
 const { getAllVotes } = require("../../lib/store");
 
-exports.handler = async () => {
+exports.handler = async (event) => {
   try {
-    const votes = await getAllVotes(event);
+    const votes = await getAllVotes(event && event.headers ? event : undefined);
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
