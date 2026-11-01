@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     res.status(200).json({ count: votes.length, votes });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "storage failed" });
+    console.error("results error:", err && err.message);
+    res.status(500).json({ error: "storage failed", detail: String(err && err.message || err) });
   }
 };

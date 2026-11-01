@@ -7,25 +7,33 @@
 const STORE = "votes";
 let memory = [];
 
+function memoryStore() {
+  return {
+    kind: "memory",
+    async append(record) { memory.push(record); },
+    async all() { return memory.slice(); }
+  };
+}
+
 async function getStore() {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const { put, list, get } = require("@vercel/blob");
+    const { put, list } = require("@vercel/blob");
     return {
-      kind: "vercel",
+      kind: "vercel-blob",
       async append(record) {
-        const key = record.sessionId + "/" + record.pairId + "/" + record.storedAt + ".json";
+        const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-") + ".json";
         await put(key, JSON.stringify(record), { access: "public", contentType: "application/json", addRandomSuffix: false });
       },
       async all() {
         const out = [];
-        let cursor;
+        let cursor = undefined;
         do {
-          const page = await list({ cursor, limit: 1000 });
+          const page = await list({ prefix: "votes/", cursor, limit: 1000 });
           for (const item of page.blobs) {
             const res = await fetch(item.url);
             if (res.ok) out.push(await res.json());
           }
-          cursor = page.cursor;
+          cursor = page.hasMore ? page.cursor : undefined;
         } while (cursor);
         return out;
       }
@@ -35,7 +43,7 @@ async function getStore() {
     const { getStore } = require("@netlify/blobs");
     const blobs = getStore(STORE);
     return {
-      kind: "netlify",
+      kind: "netlify-blobs",
       async append(record) {
         const key = record.sessionId + ":" + record.pairId + ":" + record.storedAt;
         await blobs.setJSON(key, record);
@@ -50,11 +58,13 @@ async function getStore() {
       }
     };
   }
-  return {
-    kind: "memory",
-    async append(record) { memory.push(record); },
-    async all() { return memory.slice(); }
-  };
+  if (process.env.VERCEL || process.env.NETLIFY) {
+    throw new Error(
+      "No persistent store configured. On Vercel: connect a Blob store to this project " +
+      "(Storage tab -> Create/Connect) so BLOB_READ_WRITE_TOKEN is set, then redeploy."
+    );
+  }
+  return memoryStore();
 }
 
 async function appendVote(vote) {

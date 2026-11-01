@@ -21,7 +21,7 @@ exports.handler = async (event) => {
     await appendVote(body);
     return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true }) };
   } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: "storage failed" }) };
+    console.error("vote error:", err && err.message);
+    return { statusCode: 500, body: JSON.stringify({ error: "storage failed", detail: String(err && err.message || err) }) };
   }
 };

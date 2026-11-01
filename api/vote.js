@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
     await appendVote(body);
     res.status(200).json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "storage failed" });
+    console.error("vote error:", err && err.message);
+    res.status(500).json({ error: "storage failed", detail: String(err && err.message || err) });
   }
 };

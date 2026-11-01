@@ -115,8 +115,12 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).then((r) => {
-      if (!r.ok) throw new Error("Vote failed: " + r.status);
+    }).then(async (r) => {
+      if (!r.ok) {
+        let detail = "";
+        try { detail = (await r.json()).detail || ""; } catch (e) {}
+        throw new Error("Vote failed: " + r.status + (detail ? " - " + detail : ""));
+      }
       return r.json().catch(() => ({}));
     });
   }
@@ -131,7 +135,7 @@
     sendVote(payload)
       .catch((err) => {
         try { localStorage.setItem("pending_" + payload.sessionId + "_" + payload.pairId, JSON.stringify(payload)); } catch (e) {}
-        $("vote-status").textContent = "Couldn't reach the server — moving on.";
+        $("vote-status").textContent = "Vote not saved (" + err.message + ") — moving on.";
         console.warn(err);
       })
       .finally(() => {

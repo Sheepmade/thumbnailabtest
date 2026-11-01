@@ -9,7 +9,7 @@ exports.handler = async () => {
       body: JSON.stringify({ count: votes.length, votes })
     };
   } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: "storage failed" }) };
+    console.error("results error:", err && err.message);
+    return { statusCode: 500, body: JSON.stringify({ error: "storage failed", detail: String(err && err.message || err) }) };
   }
 };
