@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  backend: "vercel",
+  backend: "netlify",
   endpoints: {
     sheets: "",
     vote: "/.netlify/functions/vote",

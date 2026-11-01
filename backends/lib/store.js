@@ -89,18 +89,18 @@ async function getStore(req) {
     if (store && store.append) return store;
     throw new Error("Vercel Blob store unavailable: " + (store && store.error ? store.error : "unknown") + ". Diagnostics: " + envDiag() + " oidcHeader=" + !!getOidcToken(req));
   }
-  if (process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY) {
+  if (process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
     const blobs = getStore(STORE);
     return {
       kind: "netlify-blobs",
       async append(record) {
-        const key = record.sessionId + ":" + record.pairId + ":" + record.storedAt;
+        const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-");
         await blobs.setJSON(key, record);
       },
       async all() {
         const out = [];
-        for await (const { key } of blobs.list({ prefix: "" })) {
+        for await (const { key } of blobs.list({ prefix: "votes/" })) {
           const v = await blobs.getJSON(key);
           if (v) out.push(v);
         }
