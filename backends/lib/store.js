@@ -31,27 +31,30 @@ function memoryStore() {
 const VERCEL_API = "https://api.vercel.com";
 
 async function getVercelRwToken() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  if (process.env.BLOB_READ_WRITE_TOKEN) return { token: process.env.BLOB_READ_WRITE_TOKEN };
   const storeId = process.env.BLOB_STORE_ID;
   const bearer = process.env.VERCEL_API_TOKEN || process.env.VERCEL_TOKEN;
-  if (storeId && bearer) {
-    const res = await fetch(VERCEL_API + "/v1/integrations/stores/" + encodeURIComponent(storeId) + "/access-token", {
-      method: "POST",
-      headers: { authorization: "Bearer " + bearer, "content-type": "application/json" },
-      body: JSON.stringify({ projectId: process.env.VERCEL_PROJECT_ID || undefined })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.token) return data.token;
-    }
+  if (!storeId || !bearer) return { error: "missing BLOB_STORE_ID or VERCEL_API_TOKEN" };
+  const res = await fetch(VERCEL_API + "/v1/integrations/stores/" + encodeURIComponent(storeId) + "/access-token", {
+    method: "POST",
+    headers: { authorization: "Bearer " + bearer, "content-type": "application/json" },
+    body: JSON.stringify({ projectId: process.env.VERCEL_PROJECT_ID || undefined })
+  });
+  const text = await res.text();
+  if (!res.ok) return { error: "vercel api " + res.status + ": " + text.slice(0, 300) };
+  try {
+    const data = JSON.parse(text);
+    if (data.token) return { token: data.token };
+    return { error: "vercel api 200 but no token in response: " + text.slice(0, 300) };
+  } catch {
+    return { error: "vercel api returned non-json: " + text.slice(0, 300) };
   }
-  return null;
 }
 
 async function vercelBlobStore() {
-  const token = await getVercelRwToken();
-  if (!token) return null;
-  const auth = "Bearer " + token;
+  const t = await getVercelRwToken();
+  if (!t.token) return { error: t.error || "could not mint blob token" };
+  const auth = "Bearer " + t.token;
   return {
     kind: "vercel-blob",
     async append(record) {
@@ -86,7 +89,8 @@ async function vercelBlobStore() {
 async function getStore() {
   if (process.env.BLOB_READ_WRITE_TOKEN || (process.env.BLOB_STORE_ID && process.env.VERCEL)) {
     const store = await vercelBlobStore();
-    if (store) return store;
+    if (store && store.append) return store;
+    throw new Error("Vercel Blob store unavailable: " + (store && store.error ? store.error : "unknown") + ". Diagnostics: " + envDiag());
   }
   if (process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
