@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thumbnail Study</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="app">
+  <header>
+    <h1 id="study-title">Thumbnail Study</h1>
+    <p id="prompt" class="prompt"></p>
+    <p class="progress"><span id="round-label"></span></p>
+  </header>
+
+  <section id="screen-start" class="screen">
+    <p>This is a short study on YouTube-style thumbnails. You'll see 10 pairs.
+       Pick the thumbnail you'd be most likely to click. There are no right answers
+       &mdash; go with your gut. Takes about a minute.</p>
+    <button id="start-btn" class="btn">Start</button>
+  </section>
+
+  <section id="screen-vote" class="screen hidden">
+    <div class="thumbs">
+      <button class="thumb" id="thumb-left" type="button">
+        <img id="img-left" alt="Thumbnail option A">
+      </button>
+      <button class="thumb" id="thumb-right" type="button">
+        <img id="img-right" alt="Thumbnail option B">
+      </button>
+    </div>
+    <p id="vote-status" class="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="screen-done" class="screen hidden">
+    <h2>Thanks for participating!</h2>
+    <p>Your choices have been recorded. You can close this tab.</p>
+  </section>
+
+  <section id="screen-error" class="screen hidden">
+    <h2>Something went wrong</h2>
+    <p id="error-detail"></p>
+    <p>Your vote may not have been saved. Please try again.</p>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="data/pairs.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
