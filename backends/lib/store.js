@@ -60,8 +60,12 @@ async function getStore() {
   }
   if (process.env.VERCEL || process.env.NETLIFY) {
     throw new Error(
-      "No persistent store configured. On Vercel: connect a Blob store to this project " +
-      "(Storage tab -> Create/Connect) so BLOB_READ_WRITE_TOKEN is set, then redeploy."
+      "No persistent store configured. On Vercel: connect a Blob store to THIS project " +
+      "(Storage tab -> Connect -> select the store for this project) so BLOB_READ_WRITE_TOKEN " +
+      "is set, then redeploy. Detail: VERCEL=" + !!process.env.VERCEL +
+      " NETLIFY=" + !!process.env.NETLIFY +
+      " BLOB_READ_WRITE_TOKEN=" + !!process.env.BLOB_READ_WRITE_TOKEN +
+      " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN
     );
   }
   return memoryStore();
