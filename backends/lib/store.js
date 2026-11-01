@@ -83,8 +83,15 @@ function vercelBlobStore(req) {
   };
 }
 
+function supabaseBase() {
+  let base = (process.env.SUPABASE_URL || "").trim().replace(/\/+$/, "");
+  if (base && !/^https:\/\//i.test(base)) base = "https://" + base;
+  if (base.endsWith("/rest/v1")) base = base.slice(0, -"/rest/v1".length);
+  return base;
+}
+
 function supabaseStore() {
-  const base = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const base = supabaseBase();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return { error: "missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" };
   const headers = {
