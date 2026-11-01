@@ -93,7 +93,10 @@ async function getStore(req) {
     const { getStore, connectLambda } = require("@netlify/blobs");
     // Lambda-style handlers receive Blobs credentials on the event, not the environment
     if (req && req.blobs) connectLambda(req);
-    const blobs = getStore(STORE);
+    // Deploy-scoped store: data is tied to this deploy's context and is guaranteed
+    // readable from these very functions. Site-wide getStore() can hit a region where
+    // the just-written key is not yet visible.
+    const blobs = getStore(STORE, { deployID: process.env.DEPLOY_ID || undefined });
     return {
       kind: "netlify-blobs",
       async append(record) {
