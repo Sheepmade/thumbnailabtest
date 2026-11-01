@@ -14,6 +14,8 @@ function envDiag() {
   return "VERCEL=" + !!process.env.VERCEL +
     " BLOB_READ_WRITE_TOKEN=" + !!process.env.BLOB_READ_WRITE_TOKEN +
     " BLOB_STORE_ID=" + !!process.env.BLOB_STORE_ID +
+    " VERCEL_API_TOKEN=" + !!process.env.VERCEL_API_TOKEN +
+    " VERCEL_PROJECT_ID=" + !!process.env.VERCEL_PROJECT_ID +
     " NETLIFY=" + !!process.env.NETLIFY +
     " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN;
 }
@@ -26,7 +28,29 @@ function memoryStore() {
   };
 }
 
-function vercelBlobStore(token) {
+const VERCEL_API = "https://api.vercel.com";
+
+async function getVercelRwToken() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const storeId = process.env.BLOB_STORE_ID;
+  const bearer = process.env.VERCEL_API_TOKEN || process.env.VERCEL_TOKEN;
+  if (storeId && bearer) {
+    const res = await fetch(VERCEL_API + "/v1/integrations/stores/" + encodeURIComponent(storeId) + "/access-token", {
+      method: "POST",
+      headers: { authorization: "Bearer " + bearer, "content-type": "application/json" },
+      body: JSON.stringify({ projectId: process.env.VERCEL_PROJECT_ID || undefined })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) return data.token;
+    }
+  }
+  return null;
+}
+
+async function vercelBlobStore() {
+  const token = await getVercelRwToken();
+  if (!token) return null;
   const auth = "Bearer " + token;
   return {
     kind: "vercel-blob",
@@ -60,8 +84,9 @@ function vercelBlobStore(token) {
 }
 
 async function getStore() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    return vercelBlobStore(process.env.BLOB_READ_WRITE_TOKEN);
+  if (process.env.BLOB_READ_WRITE_TOKEN || (process.env.BLOB_STORE_ID && process.env.VERCEL)) {
+    const store = await vercelBlobStore();
+    if (store) return store;
   }
   if (process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
