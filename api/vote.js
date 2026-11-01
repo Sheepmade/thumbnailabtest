@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
     return;
   }
   try {
-    await appendVote(body);
+    await appendVote(body, req);
     res.status(200).json({ ok: true });
   } catch (err) {
     console.error("vote error:", err && err.message);

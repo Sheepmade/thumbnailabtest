@@ -14,7 +14,7 @@ function envDiag() {
   return "VERCEL=" + !!process.env.VERCEL +
     " BLOB_READ_WRITE_TOKEN=" + !!process.env.BLOB_READ_WRITE_TOKEN +
     " BLOB_STORE_ID=" + !!process.env.BLOB_STORE_ID +
-    " VERCEL_API_TOKEN=" + !!process.env.VERCEL_API_TOKEN +
+    " VERCEL_OIDC_TOKEN=" + !!process.env.VERCEL_OIDC_TOKEN +
     " VERCEL_PROJECT_ID=" + !!process.env.VERCEL_PROJECT_ID +
     " NETLIFY=" + !!process.env.NETLIFY +
     " NETLIFY_BLOBS_TOKEN=" + !!process.env.NETLIFY_BLOBS_TOKEN;
@@ -28,40 +28,37 @@ function memoryStore() {
   };
 }
 
-const VERCEL_API = "https://api.vercel.com";
-
-async function getVercelRwToken() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return { token: process.env.BLOB_READ_WRITE_TOKEN };
-  const storeId = process.env.BLOB_STORE_ID;
-  const bearer = process.env.VERCEL_API_TOKEN || process.env.VERCEL_TOKEN;
-  if (!storeId || !bearer) return { error: "missing BLOB_STORE_ID or VERCEL_API_TOKEN" };
-  const res = await fetch(VERCEL_API + "/v1/integrations/stores/" + encodeURIComponent(storeId) + "/access-token", {
-    method: "POST",
-    headers: { authorization: "Bearer " + bearer, "content-type": "application/json" },
-    body: JSON.stringify({ projectId: process.env.VERCEL_PROJECT_ID || undefined })
-  });
-  const text = await res.text();
-  if (!res.ok) return { error: "vercel api " + res.status + ": " + text.slice(0, 300) };
-  try {
-    const data = JSON.parse(text);
-    if (data.token) return { token: data.token };
-    return { error: "vercel api 200 but no token in response: " + text.slice(0, 300) };
-  } catch {
-    return { error: "vercel api returned non-json: " + text.slice(0, 300) };
-  }
+function getOidcToken(req) {
+  const h = req && req.headers ? req.headers["x-vercel-oidc-token"] : undefined;
+  if (h) return h;
+  return process.env.VERCEL_OIDC_TOKEN || undefined;
 }
 
-async function vercelBlobStore() {
-  const t = await getVercelRwToken();
-  if (!t.token) return { error: t.error || "could not mint blob token" };
-  const auth = "Bearer " + t.token;
+function blobHeaders(req, extra) {
+  const h = {
+    "x-vercel-blob-store-id": process.env.BLOB_STORE_ID,
+    "x-api-version": "7",
+    ...(extra || {})
+  };
+  const oidc = getOidcToken(req);
+  const rw = process.env.BLOB_READ_WRITE_TOKEN;
+  if (rw) h.authorization = "Bearer " + rw;
+  else if (oidc) h.authorization = "Bearer " + oidc;
+  return h;
+}
+
+function vercelBlobStore(req) {
+  if (!process.env.BLOB_STORE_ID) return { error: "BLOB_STORE_ID missing" };
+  if (!getOidcToken(req) && !process.env.BLOB_READ_WRITE_TOKEN) {
+    return { error: "no OIDC token (x-vercel-oidc-token header / VERCEL_OIDC_TOKEN) and no BLOB_READ_WRITE_TOKEN" };
+  }
   return {
     kind: "vercel-blob",
     async append(record) {
       const key = "votes/" + record.sessionId + "/" + record.pairId + "-" + record.storedAt.replace(/[:.]/g, "-") + ".json";
       const res = await fetch(BLOB_API + "/" + encodeURIComponent(key) + "?addRandomSuffix=false", {
         method: "PUT",
-        headers: { authorization: auth, "content-type": "application/json", "x-content-type": "application/json", "access": "public" },
+        headers: blobHeaders(req, { "content-type": "application/json", "x-content-type": "application/json", "access": "public" }),
         body: JSON.stringify(record)
       });
       if (!res.ok) throw new Error("blob put failed: " + res.status + " " + (await res.text()).slice(0, 200));
@@ -72,7 +69,7 @@ async function vercelBlobStore() {
       do {
         const q = new URLSearchParams({ prefix: "votes/", limit: "1000" });
         if (cursor) q.set("cursor", cursor);
-        const res = await fetch(BLOB_API + "/?" + q.toString(), { headers: { authorization: auth } });
+        const res = await fetch(BLOB_API + "/?" + q.toString(), { headers: blobHeaders(req) });
         if (!res.ok) throw new Error("blob list failed: " + res.status + " " + (await res.text()).slice(0, 200));
         const page = await res.json();
         for (const item of page.blobs || []) {
@@ -86,11 +83,11 @@ async function vercelBlobStore() {
   };
 }
 
-async function getStore() {
+async function getStore(req) {
   if (process.env.BLOB_READ_WRITE_TOKEN || (process.env.BLOB_STORE_ID && process.env.VERCEL)) {
-    const store = await vercelBlobStore();
+    const store = vercelBlobStore(req);
     if (store && store.append) return store;
-    throw new Error("Vercel Blob store unavailable: " + (store && store.error ? store.error : "unknown") + ". Diagnostics: " + envDiag());
+    throw new Error("Vercel Blob store unavailable: " + (store && store.error ? store.error : "unknown") + ". Diagnostics: " + envDiag() + " oidcHeader=" + !!getOidcToken(req));
   }
   if (process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY) {
     const { getStore } = require("@netlify/blobs");
@@ -121,15 +118,15 @@ async function getStore() {
   return memoryStore();
 }
 
-async function appendVote(vote) {
+async function appendVote(vote, req) {
   const record = { ...vote, storedAt: new Date().toISOString() };
-  const store = await getStore();
+  const store = await getStore(req);
   await store.append(record);
   return record;
 }
 
-async function getAllVotes() {
-  const store = await getStore();
+async function getAllVotes(req) {
+  const store = await getStore(req);
   return store.all();
 }
 

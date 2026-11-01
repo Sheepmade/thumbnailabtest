@@ -18,7 +18,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: "choice must be ai|human" }) };
   }
   try {
-    await appendVote(body);
+    await appendVote(body, event);
     return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true }) };
   } catch (err) {
     console.error("vote error:", err && err.message);
